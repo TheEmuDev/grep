@@ -20,7 +20,9 @@ HANDLE console;
 WORD current_console_attr;
 CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-const std::string options_long[] = {
+const int options_length = 11;
+const char *options = "VEFGPefivwx";
+const std::string options_long[options_length] = {
 	"version",
 	"extended-regexp",
 	"fixed-strings",
@@ -31,10 +33,8 @@ const std::string options_long[] = {
 	"ignore-case",
 	"invert-match",
 	"word-regexp",
-	"line-regexp"
+	"line-regexp",
 };
-
-const char *options = "VEFGPefivwx";
 
 void assert(const bool expression, const char* msg)
 {
@@ -50,11 +50,17 @@ bool pattern_match(const char* pattern, const char* filepath)
 	bool match_found = false;
 	std::fstream file(filepath);
 	std::string line;
+	int match;
 
 	while (std::getline(file, line)) {
-		if(line.find(pattern) != std::string::npos) {
-			std::cout << line << std::endl;
+		match = line.find(pattern);
+		if(match != std::string::npos) {
 			match_found = true;
+			std::cout << line.substr(0, match);
+			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
+			std::cout << pattern;
+			SetConsoleTextAttribute(console, current_console_attr);
+			std::cout << line.substr(match + std::strlen(pattern)) << std::endl;
 		}
 	}
 	file.close();
@@ -95,7 +101,10 @@ int getopt(int argc, char *argv[], const char *optarg) {
 
 	while(optind < argc) {
 		if(strncmp(argv[optind], "--", 2) == 0) {
-			// TODO: parse full word options
+			nextchar = std::strstr(argv[optind], "--");
+			nextchar += 2;
+			optind++;
+			return -2;
 		}
 
 		else if(strncmp(argv[optind], "-", 1) == 0) {
@@ -142,6 +151,25 @@ int main(int argc, char* argv[])
 	}
 
 	while((opt = getopt(argc, argv, options)) != -1) {
+		if(opt == -2) {
+			if(nextchar[0] == '\0')
+				continue;
+			
+			if(std::strcmp(nextchar, "help") == 0) {
+				std::cout << "[usage]: grep [OPTION...] PATTERNS [FILE...]" << std::endl;
+				std::cout << "grep [OPTION...] -e PATTERNS ... [FILE...]" << std::endl;
+				std::cout << "grep [OPTION...] -f PATTERN_FILE ... [FILE...]" << std::endl;
+				return 0;
+			}
+
+			for(int i = 0; i < options_length; i++) {
+				if(options_long[i].compare(nextchar) == 0)  {
+					opt = options[i]; // TODO: handle --regex=PATTERNS
+					break;
+				}
+			}
+		}
+
 		if(opt == 'V') { // version
 			std::cout << VERSION << std::endl;
 			return 0;

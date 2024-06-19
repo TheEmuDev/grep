@@ -6,7 +6,7 @@
 #include <cstring>
 #include <Windows.h>
 
-#define VERSION "0.0.1"
+#define VERSION "0.0.2"
 
 int optind = 1, // index of next argument to be processed 
     opterr = 1, // set to 0 to disable error messages
@@ -15,19 +15,20 @@ int optind = 1, // index of next argument to be processed
 char *nextchar = nullptr;
 int first_arg = -1;
 
+bool invertMatch = false;
+
 // Console Screen Buffer Info
 HANDLE console;
 WORD current_console_attr;
 CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-const int options_length = 11;
-const char *options = "VEFGPefivwx";
+const int options_length = 10;
+const char *options = "VEFGefivwx";
 const std::string options_long[options_length] = {
 	"version",
 	"extended-regexp",
 	"fixed-strings",
 	"basic-regexp",
-	"perl-regexp",
 	"regexp",
 	"file",
 	"ignore-case",
@@ -45,7 +46,7 @@ void assert(const bool expression, const char* msg)
 	}	
 }
 
-bool pattern_match(const char* pattern, const char* filepath) 
+bool pattern_match(const char* pattern, const char* filepath)
 {
 	bool match_found = false;
 	std::fstream file(filepath);
@@ -55,12 +56,21 @@ bool pattern_match(const char* pattern, const char* filepath)
 	while (std::getline(file, line)) {
 		match = line.find(pattern);
 		if(match != std::string::npos) {
+			if(invertMatch)
+				continue;
+
 			match_found = true;
 			std::cout << line.substr(0, match);
 			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
 			std::cout << pattern;
 			SetConsoleTextAttribute(console, current_console_attr);
 			std::cout << line.substr(match + std::strlen(pattern)) << std::endl;
+		}
+		else if(invertMatch) {
+			match_found = true;
+			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
+			std::cout << line << std::endl;
+			SetConsoleTextAttribute(console, current_console_attr);
 		}
 	}
 	file.close();
@@ -76,12 +86,21 @@ bool pattern_match(const std::regex pattern, const char* filepath)
 
 	while(std::getline(file, line)) {
 		if(std::regex_search(line, match, pattern)) {
+			if(invertMatch)
+				continue;
+
 			match_found = true;
 			std::cout << match.prefix();
 			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
 			std::cout << match[0];
 			SetConsoleTextAttribute(console, current_console_attr);
 			std::cout << match.suffix() << std::endl;
+		}
+		else if(invertMatch) {
+			match_found = true;
+			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
+			std::cout << line << std::endl;
+			SetConsoleTextAttribute(console, current_console_attr);
 		}
 	}
 	file.close();
@@ -176,15 +195,23 @@ int main(int argc, char* argv[])
 		}
 
 		if(opt == 'G') { // basic-regexp
-			flags |= std::regex_constants::basic;
+			flags = std::regex_constants::basic;
 		}
 
 		if(opt == 'E') { // extended-regexp
-			flags |= std::regex_constants::extended;
+			flags = std::regex_constants::extended;
 		}
 
 		if(opt == 'F') { // fixed-strings
 			useRegex = false;
+		}
+
+		if(opt == 'i') {
+			flags |= std::regex_constants::icase;
+		}
+
+		if(opt == 'v') {
+			invertMatch = true;
 		}
 	}
 	

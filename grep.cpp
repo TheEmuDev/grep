@@ -17,7 +17,10 @@ int first_arg = -1;
 
 bool invert_match = false,
      use_regex = true,
+     line_regex = false,
+     word_regex = false,
      print_match_count = false,
+     print_line_numbers = false,
      files_with_matches = false,
      files_without_matches = false;
 
@@ -45,7 +48,7 @@ const std::string options_long[options_length] = {
 	"files-with-matches",		// DONE
 	"only-matching",
 	"no-filename",
-	"line-number",
+	"line-number"			// DONE
 };
 
 void assert(const bool expression, const char* msg)
@@ -62,9 +65,12 @@ bool pattern_match(const char* pattern, const char* filepath)
 	bool match_found = false;
 	std::fstream file(filepath);
 	std::string line;
-	int match, matches_count = 0;
+	int match,
+	    matches_count = 0,
+            line_number = 0;
 
 	while (std::getline(file, line)) {
+		line_number++;
 		match = line.find(pattern);
 		if(match != std::string::npos) {
 			match_found = true;
@@ -79,6 +85,10 @@ bool pattern_match(const char* pattern, const char* filepath)
 
 			if(invert_match || print_match_count)
 				continue;
+
+			if(print_line_numbers) {
+				std::cout << line_number << ": ";
+			}
 
 			std::cout << line.substr(0, match);
 			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
@@ -113,9 +123,11 @@ bool pattern_match(const std::regex pattern, const char* filepath)
 	std::fstream file(filepath);
 	std::string line;
 	std::smatch match;
-	int matches_count = 0;
+	int matches_count = 0,
+	    line_number = 0;
 
 	while(std::getline(file, line)) {
+		line_number++;
 		if(std::regex_search(line, match, pattern)) {
 			match_found = true;
 
@@ -128,6 +140,10 @@ bool pattern_match(const std::regex pattern, const char* filepath)
 
 			if(invert_match || print_match_count)
 				continue;
+
+			if(print_line_numbers) {
+				std::cout << line_number << ": ";
+			}
 
 			std::cout << match.prefix();
 			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
@@ -271,6 +287,10 @@ int main(int argc, char* argv[])
 
 		if(opt == 'c') {
 			print_match_count = true;
+		}
+
+		if(opt == 'n') {
+			print_line_numbers = true;
 		}
 	}
 	

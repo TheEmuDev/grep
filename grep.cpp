@@ -6,7 +6,7 @@
 #include <cstring>
 #include <Windows.h>
 
-#define VERSION "0.0.2"
+#define VERSION "0.0.3"
 
 int optind = 1, // index of next argument to be processed 
     opterr = 1, // set to 0 to disable error messages
@@ -15,26 +15,37 @@ int optind = 1, // index of next argument to be processed
 char *nextchar = nullptr;
 int first_arg = -1;
 
-bool invertMatch = false;
+bool invert_match = false,
+     use_regex = true,
+     print_match_count = false,
+     files_with_matches = false,
+     files_without_matches = false;
 
 // Console Screen Buffer Info
 HANDLE console;
 WORD current_console_attr;
 CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-const int options_length = 10;
-const char *options = "VEFGefivwx";
+const int options_length = 17;
+const char *options = "VEFGLHefivwxclohn";
 const std::string options_long[options_length] = {
-	"version",
-	"extended-regexp",
-	"fixed-strings",
-	"basic-regexp",
+	"version",			// DONE
+	"extended-regexp",		// DONE
+	"fixed-strings",		// DONE
+	"basic-regexp",			// DONE
+	"files-without-matches",	// DONE
+	"with-filename",
 	"regexp",
 	"file",
 	"ignore-case",
 	"invert-match",
 	"word-regexp",
 	"line-regexp",
+	"count",			// DONE
+	"files-with-matches",		// DONE
+	"only-matching",
+	"no-filename",
+	"line-number",
 };
 
 void assert(const bool expression, const char* msg)
@@ -51,28 +62,47 @@ bool pattern_match(const char* pattern, const char* filepath)
 	bool match_found = false;
 	std::fstream file(filepath);
 	std::string line;
-	int match;
+	int match, matches_count = 0;
 
 	while (std::getline(file, line)) {
 		match = line.find(pattern);
 		if(match != std::string::npos) {
-			if(invertMatch)
+			match_found = true;
+
+			if(!invert_match && print_match_count) {
+				matches_count++;
+			}
+
+			if(files_without_matches || files_with_matches) {
+				break;
+			}
+
+			if(invert_match || print_match_count)
 				continue;
 
-			match_found = true;
 			std::cout << line.substr(0, match);
 			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
 			std::cout << pattern;
 			SetConsoleTextAttribute(console, current_console_attr);
 			std::cout << line.substr(match + std::strlen(pattern)) << std::endl;
 		}
-		else if(invertMatch) {
-			match_found = true;
-			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
+		else if(invert_match && print_match_count) {
+			matches_count++;
+			continue;
+		}
+		else if(invert_match && !files_without_matches) {
 			std::cout << line << std::endl;
-			SetConsoleTextAttribute(console, current_console_attr);
 		}
 	}
+
+	if(print_match_count) {
+		std::cout << filepath << ": " << matches_count << std::endl;
+	}
+
+	if((files_without_matches && !match_found) || (files_with_matches && match_found)) {
+		std::cout << filepath << std::endl;
+	}
+	
 	file.close();
 	return match_found;
 }
@@ -83,29 +113,47 @@ bool pattern_match(const std::regex pattern, const char* filepath)
 	std::fstream file(filepath);
 	std::string line;
 	std::smatch match;
+	int matches_count = 0;
 
 	while(std::getline(file, line)) {
 		if(std::regex_search(line, match, pattern)) {
-			if(invertMatch)
+			match_found = true;
+
+			if(!invert_match && print_match_count) {
+				matches_count++;
+			}
+
+			if(files_without_matches || files_with_matches)
+				break;
+
+			if(invert_match || print_match_count)
 				continue;
 
-			match_found = true;
 			std::cout << match.prefix();
 			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
 			std::cout << match[0];
 			SetConsoleTextAttribute(console, current_console_attr);
 			std::cout << match.suffix() << std::endl;
 		}
-		else if(invertMatch) {
-			match_found = true;
-			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
+		else if(invert_match && print_match_count) {
+			matches_count++;
+			continue;
+		}
+		else if(invert_match && !files_without_matches) {
 			std::cout << line << std::endl;
-			SetConsoleTextAttribute(console, current_console_attr);
 		}
 	}
+
+	if(print_match_count) {
+		std::cout << filepath << ": " << matches_count << std::endl;
+	}
+
+	if((files_without_matches && !match_found) || (files_with_matches && match_found)) {
+		std::cout << filepath << std::endl;
+	}
+
 	file.close();
 	return match_found;
-	
 }
 
 int getopt(int argc, char *argv[], const char *optarg) {
@@ -158,7 +206,6 @@ int getopt(int argc, char *argv[], const char *optarg) {
 
 int main(int argc, char* argv[]) 
 {
-	bool useRegex = true;
 	int found = 1;
 	int opt;
 	auto flags = std::regex_constants::basic;
@@ -203,7 +250,15 @@ int main(int argc, char* argv[])
 		}
 
 		if(opt == 'F') { // fixed-strings
-			useRegex = false;
+			use_regex = false;
+		}
+		
+		if(opt == 'L') {
+			files_without_matches = true;
+		}
+		
+		if(opt == 'l') {
+			files_with_matches = true;
 		}
 
 		if(opt == 'i') {
@@ -211,15 +266,19 @@ int main(int argc, char* argv[])
 		}
 
 		if(opt == 'v') {
-			invertMatch = true;
+			invert_match = true;
+		}
+
+		if(opt == 'c') {
+			print_match_count = true;
 		}
 	}
 	
-	assert(argc >= 3, "expected minimum of two arguments. [usage]: grep <pattern> <file1> ...");
+	assert(argc >= 3, "expected minimum of two arguments. [usage]: grep <option(s)> <pattern> <file1> ...");
 
 	try {
-		for(int curr = 2; curr < argc; curr++) {
-			if(useRegex) {
+		for(int curr = optind+1; curr < argc; curr++) {
+			if(use_regex) {
 				std::regex regex_pattern(argv[optind], flags);
 				if (pattern_match(regex_pattern, argv[curr])) {
 					found = 0;
@@ -230,7 +289,6 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
-	
 		return found;
 	} catch (std::exception e) {
 		return 2;

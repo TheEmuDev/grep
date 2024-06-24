@@ -15,14 +15,16 @@ int optind = 1, // index of next argument to be processed
 char *nextchar = nullptr;
 int first_arg = -1;
 
-bool invert_match = false,
-     use_regex = true,
+bool use_regex = true,
+     invert_match = false,
      line_regex = false,
      word_regex = false,
      print_match_count = false,
+     print_file_name = false,
      print_line_numbers = false,
      files_with_matches = false,
-     files_without_matches = false;
+     files_without_matches = false,
+     use_default_print_file_name = true;
 
 // Console Screen Buffer Info
 HANDLE console;
@@ -37,17 +39,17 @@ const std::string options_long[options_length] = {
 	"fixed-strings",		// DONE
 	"basic-regexp",			// DONE
 	"files-without-matches",	// DONE
-	"with-filename",
+	"with-filename",		// DONE
 	"regexp",
 	"file",
 	"ignore-case",
-	"invert-match",
+	"invert-match",			// DONE
 	"word-regexp",
 	"line-regexp",
 	"count",			// DONE
 	"files-with-matches",		// DONE
 	"only-matching",
-	"no-filename",
+	"no-filename",			// DONE
 	"line-number"			// DONE
 };
 
@@ -57,7 +59,7 @@ void assert(const bool expression, const char* msg)
 	{
 		std::cerr <<"assertion failed: " << msg << std::endl;
 		abort();
-	}	
+	}
 }
 
 bool pattern_match(const char* pattern, const char* filepath)
@@ -86,8 +88,12 @@ bool pattern_match(const char* pattern, const char* filepath)
 			if(invert_match || print_match_count)
 				continue;
 
+			if(print_file_name) {
+				std::cout << filepath << ":";
+			}
+
 			if(print_line_numbers) {
-				std::cout << line_number << ": ";
+				std::cout << line_number << ":";
 			}
 
 			std::cout << line.substr(0, match);
@@ -141,8 +147,12 @@ bool pattern_match(const std::regex pattern, const char* filepath)
 			if(invert_match || print_match_count)
 				continue;
 
+			if(print_file_name) {
+				std::cout << filepath << ":";
+			}
+
 			if(print_line_numbers) {
-				std::cout << line_number << ": ";
+				std::cout << line_number << ":";
 			}
 
 			std::cout << match.prefix();
@@ -273,6 +283,11 @@ int main(int argc, char* argv[])
 			files_without_matches = true;
 		}
 		
+		if(opt == 'H') {
+			use_default_print_file_name = false;
+			print_file_name = true;
+		}
+		
 		if(opt == 'l') {
 			files_with_matches = true;
 		}
@@ -292,10 +307,16 @@ int main(int argc, char* argv[])
 		if(opt == 'n') {
 			print_line_numbers = true;
 		}
+
+		if(opt == 'h') {
+			use_default_print_file_name = false;
+			print_file_name = false;
+		}
 	}
 	
 	assert(argc >= 3, "expected minimum of two arguments. [usage]: grep <option(s)> <pattern> <file1> ...");
 
+	// TODO: set print_file_name based on number of files when use_default_print_file_name is true
 	try {
 		for(int curr = optind+1; curr < argc; curr++) {
 			if(use_regex) {

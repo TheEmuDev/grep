@@ -42,10 +42,10 @@ const std::string options_long[options_length] = {
 	"with-filename",		// DONE
 	"regexp",
 	"file",
-	"ignore-case",
+	"ignore-case",			// REGEX DONE - TODO: implement for fixed string
 	"invert-match",			// DONE
-	"word-regexp",
-	"line-regexp",
+	"word-regexp",			
+	"line-regexp",			// DONE
 	"count",			// DONE
 	"files-with-matches",		// DONE
 	"only-matching",
@@ -73,8 +73,9 @@ bool pattern_match(const char* pattern, const char* filepath)
 
 	while (std::getline(file, line)) {
 		line_number++;
-		match = line.find(pattern);
-		if(match != std::string::npos) {
+		match = line_regex ? std::strcmp(pattern, line.c_str()) : line.find(pattern);
+
+		if((!line_regex && match != std::string::npos) || (line_regex && match == 0)) {
 			match_found = true;
 
 			if(!invert_match && print_match_count) {
@@ -96,11 +97,17 @@ bool pattern_match(const char* pattern, const char* filepath)
 				std::cout << line_number << ":";
 			}
 
-			std::cout << line.substr(0, match);
-			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
-			std::cout << pattern;
-			SetConsoleTextAttribute(console, current_console_attr);
-			std::cout << line.substr(match + std::strlen(pattern)) << std::endl;
+			if(line_regex) {
+				SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
+				std::cout << line << std::endl;
+				SetConsoleTextAttribute(console, current_console_attr);
+			} else {
+				std::cout << line.substr(0, match);
+				SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
+				std::cout << pattern;
+				SetConsoleTextAttribute(console, current_console_attr);
+				std::cout << line.substr(match + std::strlen(pattern)) << std::endl;
+			}
 		}
 		else if(invert_match && print_match_count) {
 			matches_count++;
@@ -300,6 +307,10 @@ int main(int argc, char* argv[])
 			invert_match = true;
 		}
 
+		if(opt == 'x') {
+			line_regex = true;
+		}
+
 		if(opt == 'c') {
 			print_match_count = true;
 		}
@@ -312,6 +323,7 @@ int main(int argc, char* argv[])
 			use_default_print_file_name = false;
 			print_file_name = false;
 		}
+
 	}
 	
 	assert(argc >= 3, "expected minimum of two arguments. [usage]: grep <option(s)> <pattern> <file1> ...");
@@ -320,7 +332,14 @@ int main(int argc, char* argv[])
 	try {
 		for(int curr = optind+1; curr < argc; curr++) {
 			if(use_regex) {
-				std::regex regex_pattern(argv[optind], flags);
+				std::string pattern_text = argv[optind];
+
+				if(line_regex) {
+					pattern_text = "^(" + pattern_text + ")$";
+				}
+
+				std::regex regex_pattern(pattern_text, flags);
+
 				if (pattern_match(regex_pattern, argv[curr])) {
 					found = 0;
 				}

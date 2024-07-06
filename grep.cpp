@@ -2,6 +2,7 @@
 #include <fstream>
 #include <exception>
 #include <regex>
+#include <cctype>
 #include <string>
 #include <cstring>
 #include <Windows.h>
@@ -17,6 +18,7 @@ int first_arg = -1;
 
 bool use_regex = true,
      invert_match = false,
+     ignore_case = false,
      line_regex = false,
      word_regex = false,
      print_match_count = false,
@@ -42,7 +44,7 @@ const std::string options_long[options_length] = {
 	"with-filename",		// DONE
 	"regexp",
 	"file",
-	"ignore-case",			// REGEX DONE - TODO: implement for fixed string
+	"ignore-case",			// DONE
 	"invert-match",			// DONE
 	"word-regexp",			
 	"line-regexp",			// DONE
@@ -62,18 +64,38 @@ void assert(const bool expression, const char* msg)
 	}
 }
 
+std::string to_lower(const char* in) {
+	std::string out = in;
+
+	for(int i = 0; i < out.length(); i++) {
+		if(std::isupper(out[i])) {
+			out[i] = std::tolower(out[i]);
+		}
+	}
+
+	return out;
+}
+
 bool pattern_match(const char* pattern, const char* filepath)
 {
 	bool match_found = false;
 	std::fstream file(filepath);
-	std::string line;
+	std::string line, lower_line, needle, pile;
 	int match,
 	    matches_count = 0,
             line_number = 0;
 
 	while (std::getline(file, line)) {
 		line_number++;
-		match = line_regex ? std::strcmp(pattern, line.c_str()) : line.find(pattern);
+		needle = ignore_case ? to_lower(pattern) : pattern;
+
+		if(ignore_case) {
+			lower_line = to_lower(line.c_str());
+		}
+
+		pile = ignore_case ? lower_line : line;
+
+		match = line_regex ? std::strcmp(needle.c_str(), pile.c_str()) : pile.find(needle);
 
 		if((!line_regex && match != std::string::npos) || (line_regex && match == 0)) {
 			match_found = true;
@@ -104,7 +126,7 @@ bool pattern_match(const char* pattern, const char* filepath)
 			} else {
 				std::cout << line.substr(0, match);
 				SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
-				std::cout << pattern;
+				std::cout << line.substr(match, std::strlen(pattern));
 				SetConsoleTextAttribute(console, current_console_attr);
 				std::cout << line.substr(match + std::strlen(pattern)) << std::endl;
 			}
@@ -300,6 +322,7 @@ int main(int argc, char* argv[])
 		}
 
 		if(opt == 'i') {
+			ignore_case = true;
 			flags |= std::regex_constants::icase;
 		}
 

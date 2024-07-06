@@ -16,17 +16,18 @@ int optind = 1, // index of next argument to be processed
 char *nextchar = nullptr;
 int first_arg = -1;
 
-bool use_regex = true,
-     invert_match = false,
+bool files_with_matches = false,
+     files_without_matches = false,
      ignore_case = false,
+     invert_match = false,
      line_regex = false,
-     word_regex = false,
-     print_match_count = false,
+     only_matching = false,
      print_file_name = false,
      print_line_numbers = false,
-     files_with_matches = false,
-     files_without_matches = false,
-     use_default_print_file_name = true;
+     print_match_count = false,
+     use_default_print_file_name = true,
+     use_regex = true,
+     word_regex = false;
 
 // Console Screen Buffer Info
 HANDLE console;
@@ -80,20 +81,16 @@ bool pattern_match(const char* pattern, const char* filepath)
 {
 	bool match_found = false;
 	std::fstream file(filepath);
-	std::string line, lower_line, needle, pile;
+	std::string line, needle, pile;
 	int match,
 	    matches_count = 0,
             line_number = 0;
 
 	while (std::getline(file, line)) {
 		line_number++;
+		
 		needle = ignore_case ? to_lower(pattern) : pattern;
-
-		if(ignore_case) {
-			lower_line = to_lower(line.c_str());
-		}
-
-		pile = ignore_case ? lower_line : line;
+		pile = ignore_case ? to_lower(line.c_str()) : line;
 
 		match = line_regex ? std::strcmp(needle.c_str(), pile.c_str()) : pile.find(needle);
 
@@ -120,15 +117,19 @@ bool pattern_match(const char* pattern, const char* filepath)
 			}
 
 			if(line_regex) {
-				SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
 				std::cout << line << std::endl;
-				SetConsoleTextAttribute(console, current_console_attr);
 			} else {
-				std::cout << line.substr(0, match);
+				if(!only_matching) 
+					std::cout << line.substr(0, match);
+
 				SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
 				std::cout << line.substr(match, std::strlen(pattern));
 				SetConsoleTextAttribute(console, current_console_attr);
-				std::cout << line.substr(match + std::strlen(pattern)) << std::endl;
+
+				if(!only_matching)
+					std::cout << line.substr(match + std::strlen(pattern));
+
+				std::cout << std::endl;
 			}
 		}
 		else if(invert_match && print_match_count) {
@@ -184,11 +185,17 @@ bool pattern_match(const std::regex pattern, const char* filepath)
 				std::cout << line_number << ":";
 			}
 
-			std::cout << match.prefix();
+			if(!only_matching)
+				std::cout << match.prefix();
+
 			SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
 			std::cout << match[0];
 			SetConsoleTextAttribute(console, current_console_attr);
-			std::cout << match.suffix() << std::endl;
+
+			if(!only_matching)
+				std::cout << match.suffix();
+
+			std::cout << std::endl;
 		}
 		else if(invert_match && print_match_count) {
 			matches_count++;
@@ -338,8 +345,8 @@ int main(int argc, char* argv[])
 			print_match_count = true;
 		}
 
-		if(opt == 'n') {
-			print_line_numbers = true;
+		if(opt == 'o') {
+			only_matching = true;
 		}
 
 		if(opt == 'h') {
@@ -347,6 +354,11 @@ int main(int argc, char* argv[])
 			print_file_name = false;
 		}
 
+		if(opt == 'n') {
+			print_line_numbers = true;
+		}
+
+const char *options = "VEFGLHefivwxclohn";
 	}
 	
 	assert(argc >= 3, "expected minimum of two arguments. [usage]: grep <option(s)> <pattern> <file1> ...");

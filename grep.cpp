@@ -8,7 +8,7 @@
 #include <vector>
 #include <Windows.h>
 
-#define VERSION "0.0.3"
+#define VERSION "0.0.4"
 
 int optind = 1, // index of next argument to be processed 
     opterr = 1, // set to 0 to disable error messages
@@ -19,7 +19,8 @@ char *nextchar = nullptr;
 
 int first_arg = -1;
 
-bool files_with_matches = false,
+bool basic_regex = true,
+     files_with_matches = false,
      files_without_matches = false,
      ignore_case = false,
      invert_match = false,
@@ -49,8 +50,8 @@ const std::string options_long[options_length] = {
 	"basic-regexp",			// DONE
 	"files-without-matches",	// DONE
 	"with-filename",		// DONE
-	"regexp",
-	"file",
+	"regexp",			// SHORT OPTION DONE
+	"file",				// IN PROGRESS
 	"ignore-case",			// DONE
 	"invert-match",			// DONE
 	"word-regexp",			
@@ -348,6 +349,32 @@ bool pattern_match(const std::regex pattern, const char* filepath)
 	return match_found;
 }
 
+void get_patterns_from_file(const char *filepath) {
+	std::fstream file(filepath);
+	std::string line;
+
+	while(std::getline(file, line)) {
+		patterns.push_back(line);
+	}
+
+	file.close();
+}
+
+std::string generate_regex_from_file() {
+	assert(patterns.size() > 0, "Expect patterns to have been read from file");
+	std::string pattern = "";
+
+	for(int i = 0; i < patterns.size(); i++) {
+		if(i == 0) {
+			pattern = line_regex ? "^(" + patterns[i] + ")$" : patterns[i];
+		} else {
+			pattern = line_regex ? pattern + "|" + "^(" + patterns[i] + ")$" : pattern + "|" + patterns[i];
+		}
+	}
+
+	return pattern;
+}
+
 int getopt(int argc, char *argv[], const char *optarg) {
 	if(optind >= argc)
 		return -1;
@@ -434,9 +461,11 @@ int main(int argc, char* argv[])
 				std::cout << VERSION << std::endl;
 				return 0;
 			case 'G':
+				basic_regex = true;
 				flags = std::regex_constants::basic;
 				break;
 			case 'E':
+				basic_regex = false;
 				flags = std::regex_constants::extended;
 				break;
 			case 'F':
@@ -453,7 +482,7 @@ int main(int argc, char* argv[])
 				patterns.push_back(argv[optind+1]);
 				break;
 			case 'f':
-				// TODO: implement -f option
+				get_patterns_from_file(argv[optind+1]);
 				break;
 			case 'i':
 				ignore_case = true;
@@ -496,8 +525,17 @@ int main(int argc, char* argv[])
 	try {
 		for(int curr = optind+1; curr < argc; curr++) {
 			if(multiple_patterns) {
-				if(pattern_match(argv[curr])) {
-					found = 0;
+				if(!basic_regex && use_regex) {
+					std::string pattern_text = generate_regex_from_file();
+					std::regex regex_pattern(pattern_text, flags);
+
+					if(pattern_match(regex_pattern, argv[curr])) {
+						found = 0;
+					}
+				} else {
+					if(pattern_match(argv[curr])) {
+						found = 0;
+					}
 				}
 			} else if(use_regex) {
 				std::string pattern_text = argv[optind];

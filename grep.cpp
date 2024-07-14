@@ -8,7 +8,7 @@
 #include <vector>
 #include <Windows.h>
 
-#define VERSION "0.0.4"
+#define VERSION "0.0.5"
 
 int optind = 1, // index of next argument to be processed 
     previous_match = -1;
@@ -353,6 +353,16 @@ int main(int argc, char* argv[])
 				std::cout << "grep [OPTION...] -f PATTERN_FILE ... [FILE...]" << std::endl;
 				return 0;
 			}
+
+			if(std::strcmp(nextchar, "options") == 0) {
+				std::cout << "available options:" << std::endl; 
+				std::cout << "short-hand option = full option name" << std::endl;
+
+				for(int i = 0; i < options_length; i++) {
+					std::cout << options[i] << " = " << options_long[i] << std::endl;
+				}
+				return 0;
+			}
 			
 			long_option_with_param = std::strcspn(nextchar, "=") < std::strlen(nextchar);
 
@@ -451,16 +461,14 @@ int main(int argc, char* argv[])
 		get_patterns_from_input(argv[optind]);
 	}
 	
-	print_patterns();
+	//print_patterns();
 	// optind will point to first param that doesn't start with '-'
 	
 	if(opt_with_param_counter > 0) {
-		// .\grep.exe -e "stuff" -e "things" .\grep-test.txt
 		file_offset += 2 * opt_with_param_counter;
 	}
 	
 	if(long_opt_with_param_counter > 0) {
-		// .\grep.exe --regexp=stuff .\grep-test.txt
 		file_offset += long_opt_with_param_counter;
 	}
 

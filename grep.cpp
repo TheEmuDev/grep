@@ -238,8 +238,6 @@ void get_patterns_from_input(const char *in) {
 }
 
 void get_patterns_from_file(const char *filepath) {
-	std::cout << "reading patterns from file" << std::endl; // DEBUG
-	
 	if(std::strcmp(filepath, "-") == 0) {
 		// TODO: Implement reading from stdin
 	} else {
@@ -346,7 +344,6 @@ int main(int argc, char* argv[])
 	while((opt = getopt(argc, argv, options)) != -1) {
 		opt_count++;
 		if(opt == -2) {
-			std::cout << "long option detected -> " << nextchar <<  std::endl; // DEBUG
 			if(nextchar[0] == '\0')
 				continue;
 			
@@ -368,19 +365,15 @@ int main(int argc, char* argv[])
 						long_opt_with_param_counter++;
 						opt = options[i];
 						param = option.substr(param_offset+1);
-						std::cout << "long option parameter detected -> " << param << std::endl; // DEBUG
 						break;
 					}
 				} else if(options_long[i].compare(nextchar) == 0)  {
-					std::cout << "i: " << i << " opt: " << options[i] << std::endl; // DEBUG
 					if(options[i] == 'e' || options[i] == 'f' || options[i] == 'm') {
-						std::cout << "opt found: " << options[i] << std::endl; // DEBUG
 						opt_with_param_counter++;
 					}
 					opt = options[i];
 					break;
-				} else
-					std::cout << "nextchar: " << nextchar << ", options_long: " << options_long[i] << std::endl; // DEBUG
+				}
 			}
 		}
 
@@ -390,12 +383,10 @@ int main(int argc, char* argv[])
 				return 0;
 			case 'G':
 				basic_regex = true;
-				std::cout << "using basic regex" << std::endl; // DEBUG
 				flags = std::regex_constants::basic;
 				break;
 			case 'E':
 				basic_regex = false;
-				std::cout << "using extended regex" << std::endl; // DEBUG
 				flags = std::regex_constants::extended;
 				break;
 			case 'F':
@@ -416,8 +407,6 @@ int main(int argc, char* argv[])
 				break;
 			case 'f':
 				get_patterns_from_file(long_option_with_param ? param.c_str() : argv[optind+1]);
-				std::cout << "using pattern file " << std::endl; // DEBUG
-				std::cout << "param: " << param << " next arg: " << argv[optind+1] << std::endl; // DEBUG
 				opt_with_param_counter = long_option_with_param ? opt_with_param_counter : opt_with_param_counter + 1;
 				any_options_with_params = true;
 				long_option_with_param = false;
@@ -462,9 +451,6 @@ int main(int argc, char* argv[])
 		get_patterns_from_input(argv[optind]);
 	}
 	
-	std::cout << "long options with a param: " << long_opt_with_param_counter << ", short options with a parameter: " << opt_with_param_counter << std::endl; // DEBUG
-	std::cout << "opt count: " << opt_count << std::endl; // DEBUG
-	
 	print_patterns();
 	// optind will point to first param that doesn't start with '-'
 	
@@ -480,8 +466,6 @@ int main(int argc, char* argv[])
 
 	file_offset = (opt_count > opt_with_param_counter + long_opt_with_param_counter) ? file_offset + 2 : file_offset + 1;
 	
-	std::cout << "file_offset: " << file_offset << std::endl; // DEBUG
-
 	assert(file_offset < argc, "Expect that file offset does not go out of bounds");
 
 	// Display file name by default if searching for more than one file
